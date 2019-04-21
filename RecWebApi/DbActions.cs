@@ -7,18 +7,22 @@ using RecWebApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 
 namespace RecWebApi
 {
     public class DbActions
     {
-        public static List<CSession> GetSessionList(int teacherId, DateTime date)
+        static ILogger Logger { get; } =
+            ApplicationLogging.CreateLogger<Program>();
+
+        public static List<CSession> GetSessionList(int teacherId, DateTime? date)
         {
             try
             {
-                using (var db = new RecDbContext())
+                using (var db = new RecContext())
                 {
-                    var query = from session in db.Session.Where(item => item.Date.Month == date.Month && item.Date.Year == date.Year)
+                    var query = from session in db.Session
                                 select new
                                 {
                                     session.SessionId,
@@ -27,6 +31,11 @@ namespace RecWebApi
                                     session.ClassTerm.Class.Description,
                                     session.ClassTerm.Class.Name
                                 };
+                    if (date != null)
+                    {
+                        var definiteDate = (DateTime)date;
+                        query = query.Where(item => item.Date.Month == definiteDate.Month && item.Date.Year == definiteDate.Year);
+                    }
                     var restrictToTeachersClasses = db.ClassTeacher.Where(ct => ct.TeacherId == teacherId).Select(ct => ct.ClassId).ToArray(); //ClassId Array
                     var restrictToTeachersClassTerms = db.ClassTermTeacher.Where(ctt => ctt.TeacherId == teacherId).Select(ctt => ctt.ClassTermId).ToArray(); //ClassTermId Array
                     var restrictToTeachersSessions = db.SessionTeacher.Where(st => st.TeacherId == teacherId).Select(ctt => ctt.SessionId).ToArray(); //Session Array
@@ -60,15 +69,43 @@ namespace RecWebApi
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, true);
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
             }
+            return new List<CSession>();
         }
 
-        public static List<CClass> GetClasses(int teacherId) //Update to use class teacher
+        public static int GetClosestSessionId(int teacherId)
         {
             try
             {
-                using (var db = new RecDbContext())
+                var listOfSessions = GetSessionList(teacherId, null);
+                TimeSpan minTimeSpan = TimeSpan.MaxValue;
+                CSession closestSession = new CSession();
+                foreach (CSession session in listOfSessions)
+                {
+                    var timeUntilOrAfterPresent = session.Date.Subtract(DateTime.Now).Duration();
+                    if (timeUntilOrAfterPresent < minTimeSpan)
+                    {
+                        minTimeSpan = timeUntilOrAfterPresent;
+                        closestSession = session;
+                    }
+                }
+                return closestSession.SessionId;
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
+            }
+            return 0;
+        }
+
+        public static List<CClass> GetClasses(int teacherId)
+        {
+            try
+            {
+                using (var db = new RecContext())
                 {
                     return (from ct in db.ClassTeacher.Where(item => item.TeacherId == teacherId)
                             join cl in db.Class on ct.ClassId equals cl.ClassId
@@ -85,15 +122,17 @@ namespace RecWebApi
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, true);
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
             }
+            return new List<CClass>();
         }
 
         public static CSession GetSession(int sessionId)
         {
             try
             {
-                using (var db = new RecDbContext())
+                using (var db = new RecContext())
                 {
                     CSession session = LoadSession(sessionId, db);
                     if (session != null)
@@ -104,11 +143,13 @@ namespace RecWebApi
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, true);
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
             }
+            return new CSession();
         }
 
-        private static void LoadStudents(RecDbContext db, CSession session)
+        private static void LoadStudents(RecContext db, CSession session)
         {
 
             var students = from cts in db.ClassTermStudent
@@ -139,7 +180,7 @@ namespace RecWebApi
             }
         }
 
-        private static CSession LoadSession(int sessionId, RecDbContext db)
+        private static CSession LoadSession(int sessionId, RecContext db)
         {
             return (from qsession in db.Session
                     where qsession.SessionId == sessionId
@@ -164,7 +205,7 @@ namespace RecWebApi
             List<Attendance> attendanceList = new List<Attendance>();
             try
             {
-                using (var db = new RecDbContext())
+                using (var db = new RecContext())
                 {
                     foreach (CAttendance student in sessionAttendance.Students)
                     {
@@ -189,40 +230,49 @@ namespace RecWebApi
                             dbObject.CreationDtTm = DateTime.Now;
                         }
                     }
-                    db.SaveChanges();
+                    db.SaveChangesAsync();
                 }
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, false);
+                var sException = new ServerException(e.Message, e, false);
+                LogServerException(sException);
             }
         }
 
         public static void ValidateUser(CUser user, string authToken)
         {
-            using (var db = new RecDbContext())
+            try
             {
-                var teacher = db.Teacher.Where(t => t.Email == user.EmailAddress).FirstOrDefault();
-                if (teacher == null)
+                using (var db = new RecContext())
                 {
-                    user.ExistsOnServer = false;
-                    return;
+                    var teacher = db.Teacher.Where(t => t.Email == user.EmailAddress).FirstOrDefault();
+                    if (teacher == null)
+                    {
+                        user.ExistsOnServer = false;
+                        return;
+                    }
+                    user.ExistsOnServer = true;
+                    user.TeacherId = teacher.TeacherId;
+                    db.Update(teacher);
+                    teacher.AuthorizationToken = authToken;
+                    db.SaveChanges();
                 }
-                user.ExistsOnServer = true;
-                user.TeacherId = teacher.TeacherId;
-                db.Update(teacher);
-                teacher.AuthorizationToken = authToken;
-                db.SaveChanges();
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
             }
         }
 
-        public static void SignOut(String emailAddress)
+        public static void SignOut(string authToken)
         {
             try
             {
-                using (var db = new RecDbContext())
+                using (var db = new RecContext())
                 {
-                    var teacher = db.Teacher.Where(t => t.Email == emailAddress).FirstOrDefault();
+                    var teacher = db.Teacher.Where(t => t.AuthorizationToken == authToken).FirstOrDefault();
                     if (teacher == null)
                         return;
                     db.Update(teacher);
@@ -232,16 +282,17 @@ namespace RecWebApi
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, true);
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
             }
         }
 
         public static bool ValidateRequest(HttpRequest request)
         {
-            var authToken = request.Headers["Authorization"].ToString();
+            string authToken = request.Headers["Authorization"].ToString();
             try
             {
-                using (var db = new RecDbContext())
+                using (var db = new RecContext())
                 {
                     var myToken = db.Teacher.Where(t => t.TeacherId == 2).Select(t => t.AuthorizationToken).FirstOrDefault();
                     if (db.Teacher.Any(t => t.AuthorizationToken == authToken))
@@ -250,21 +301,242 @@ namespace RecWebApi
             }
             catch (Exception e)
             {
-                throw new ServerException(e.Message, e, false);
+                var sException = new ServerException(e.Message, e, false);
+                LogServerException(sException);
             }
             return false;
         }
 
+        public static List<CTeacher> GetTeacherList(int teacherId)
+        {
+            var teacherList = new List<CTeacher>();
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    var userTeacher = db.Teacher.Where(t => t.TeacherId == teacherId);
+                    var recIdForAdmin = db.RecTeacher.Where(rt => rt.TeacherId == teacherId && rt.IsAdministrator == true).Select(rt => rt.RecId).FirstOrDefault();
+                    var teachersForRec = db.RecTeacher.Where(rt => rt.RecId == recIdForAdmin).Select(rt => rt.Teacher).ToArray();
+                    foreach (Teacher teacher in teachersForRec)
+                    {
+                        teacherList.Add(new CTeacher
+                        {
+                            TeacherId = teacher.TeacherId,
+                            FirstName = teacher.FirstName,
+                            LastName = teacher.LastName,
+                            EmailAddress = teacher.Email,
+                        });
+
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
+            }
+            return teacherList;
+        }
+
+        public static CTeacher GetTeacher(int teacherId, int userId)
+        {
+            var teacher = new CTeacher();
+            teacher.ClassesTaught = new List<CClassTerm>();
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    int recIdForAdmin = GetRecIdForUser(userId, db);
+                    var dbTeacher = db.Teacher.Where(t => t.TeacherId == teacherId).FirstOrDefault();
+                    teacher.TeacherId = dbTeacher.TeacherId;
+                    teacher.FirstName = dbTeacher.FirstName;
+                    teacher.LastName = dbTeacher.LastName;
+                    teacher.EmailAddress = dbTeacher.Email;
+                    var disableDate = db.RecTeacher.Where(rt => rt.TeacherId == teacher.TeacherId).Select(rt => rt.DisableDate).FirstOrDefault();
+                    if (disableDate == null)
+                        teacher.IsDisabled = false;
+                    else
+                        teacher.IsDisabled = true;
+                    teacher.IsAdministrator = db.RecTeacher.Where(rt => rt.TeacherId == teacher.TeacherId && rt.RecId == recIdForAdmin).Select(rt => rt.IsAdministrator).FirstOrDefault();
+
+                    var classTermsForTeacher = db.ClassTermTeacher.Where(ctt => ctt.TeacherId == teacher.TeacherId && ctt.ClassTerm.Class.RecId == recIdForAdmin).Select(ctt => ctt.ClassTerm).ToArray();
+                    foreach (ClassTerm classTerm in classTermsForTeacher)
+                    {
+                        var classInfo = db.Class.Where(c => c.ClassId == classTerm.ClassId).FirstOrDefault();
+                        var termInfo = db.Term.Where(t => t.TermId == classTerm.TermId).FirstOrDefault();
+                        teacher.ClassesTaught.Add(new CClassTerm
+                        {
+                            ClassTermId = classTerm.ClassTermId,
+                            Name = classInfo.Name + " (" + termInfo.Name + ")",
+                            Description = classInfo.Description
+                        });
+                    }
+                }
+            }
+
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
+            }
+            return teacher;
+        }
+
+        private static int GetRecIdForUser(int userId, RecContext db)
+        {
+            return db.RecTeacher.Where(rt => rt.TeacherId == userId && rt.IsAdministrator == true).Select(rt => rt.RecId).FirstOrDefault();
+        }
+
+        public static void AddNewTeacher(CTeacher teacher, int userId)
+        {
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    var dbTeacher = new Teacher
+                    {
+                        FirstName = teacher.FirstName,
+                        LastName = teacher.LastName,
+                        Email = teacher.EmailAddress
+                    };
+                    db.Add(dbTeacher);
+                    db.SaveChanges();
+                    var teacherId = db.Teacher.Where(t => t.Email == teacher.EmailAddress).Select(t => t.TeacherId).First();
+                    var recTeacher = new RecTeacher
+                    {
+                        TeacherId = teacherId,
+                        RecId = GetRecIdForUser(userId, db),
+                        IsAdministrator = teacher.IsAdministrator,
+                    };
+                    if (teacher.IsDisabled)
+                        recTeacher.DisableDate = DateTime.Now;
+                    db.Add(recTeacher);                                  
+                    foreach (CClassTerm classTerm in teacher.ClassesTaught)
+                    {
+                        db.Add(new ClassTermTeacher
+                        {
+                            ClassTermId = classTerm.ClassTermId,
+                            TeacherId = teacherId
+                        });
+                    }
+                    db.SaveChanges();
+                }
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, false);
+                LogServerException(sException);
+            }
+        }
+
+        public static void UpdateExistingTeacher(CTeacher teacher, int userId)
+        {
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    var dbTeacher = db.Teacher.Where(t => t.TeacherId == teacher.TeacherId).First();
+                    db.Update(dbTeacher);
+                    dbTeacher.FirstName = teacher.FirstName;
+                    dbTeacher.LastName = teacher.LastName;
+                    dbTeacher.Email = teacher.EmailAddress;
+                    var recId = GetRecIdForUser(userId, db);
+                    var recTeacher = db.RecTeacher.Where(rt => rt.TeacherId == teacher.TeacherId && rt.RecId == recId).FirstOrDefault();
+                    db.Update(recTeacher);
+                    recTeacher.IsAdministrator = teacher.IsAdministrator;
+                    if (teacher.IsDisabled)
+                        recTeacher.DisableDate = DateTime.Now;
+                    
+                    foreach (CClassTerm classTerm in teacher.ClassesTaught)
+                    {
+                        var dbClassTerm = db.ClassTermTeacher.Where(ctt => ctt.TeacherId == teacher.TeacherId && ctt.ClassTermId == classTerm.ClassTermId).FirstOrDefault();
+                        if (dbClassTerm == null)
+                        {
+                            db.Add(new ClassTermTeacher
+                            {
+                                ClassTermId = classTerm.ClassTermId,
+                                TeacherId = teacher.TeacherId
+                            });
+                        }
+                        else if (classTerm.Operation == Operation.Deleted)
+                        {
+                            db.Remove(dbClassTerm);
+                        }
+                    }
+                    db.SaveChanges();
+                }
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, false);
+                LogServerException(sException);
+            }
+        }
+
+        public static List<CClassTerm> GetClassTermsForRec(int teacherId)
+        {
+            var classTermList = new List<CClassTerm>();
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    var recIdForAdmin = db.RecTeacher.Where(rt => rt.TeacherId == teacherId && rt.IsAdministrator == true).Select(rt => rt.RecId).FirstOrDefault();
+                    var classTermsForRecId = db.ClassTerm.Where(ct => ct.Class.RecId == recIdForAdmin).ToList();
+                    foreach (ClassTerm dbClassTerm in classTermsForRecId)
+                    {
+                        var className = db.Class.Where(c => c.ClassId == dbClassTerm.ClassId).Select(c => c.Name).FirstOrDefault();
+                        var term = db.Term.Where(t => t.TermId == dbClassTerm.TermId).FirstOrDefault();
+                        if (term.EndDate >= DateTime.Now)
+                        {
+                            classTermList.Add(new CClassTerm
+                            {
+                                ClassTermId = dbClassTerm.ClassTermId,
+                                Name = className + " (" + term.Name + ")"
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
+            }
+            return classTermList;
+        }
+
+        public static bool CheckIfEmailIsDuplicate(string emailAddress)
+        {
+            try
+            {
+                using (var db = new RecContext())
+                {
+                    return db.Teacher.Where(t => t.Email == emailAddress).FirstOrDefault() != null;
+                }
+            }
+            catch (Exception e)
+            {
+                var sException = new ServerException(e.Message, e, true);
+                LogServerException(sException);
+            }
+            return false; //This is bad, fix to return error instead
+        }
+
+        private static void LogServerException(ServerException ex)
+        {
+            ApplicationLogging.LoggerFactory.AddConsole(true);
+            Logger.LogError(ex.Message);
+            Logger.LogInformation(ex.StackTrace);
+        }
     }
 
     [TestClass]
     public class DbTests
     {
         [TestMethod]
-        public void SessionTest()
+        public void UpdateTeacherTest()
         {
-            var session = DbActions.GetSession(9);
-            DbActions.UpdateAttendance(session);
+            var classTerms = DbActions.GetClassTermsForRec(2);
         }
     }
 

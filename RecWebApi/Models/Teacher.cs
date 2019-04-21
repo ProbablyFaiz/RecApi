@@ -16,12 +16,9 @@ namespace RecWebApi.Models
         public int TeacherId { get; set; }
         public string FirstName { get; set; }
         public string LastName { get; set; }
-        public string MiddleName { get; set; }
         public string Email { get; set; }
-        public int? PrimaryRecId { get; set; }
         public string AuthorizationToken { get; set; }
 
-        public Rec PrimaryRec { get; set; }
         public ICollection<ClassTeacher> ClassTeacher { get; set; }
         public ICollection<ClassTermTeacher> ClassTermTeacher { get; set; }
         public ICollection<RecTeacher> RecTeacher { get; set; }

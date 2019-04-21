@@ -9,7 +9,6 @@ namespace RecWebApi.Models
         {
             Class = new HashSet<Class>();
             RecTeacher = new HashSet<RecTeacher>();
-            Teacher = new HashSet<Teacher>();
         }
 
         public int RecId { get; set; }
@@ -22,6 +21,5 @@ namespace RecWebApi.Models
 
         public ICollection<Class> Class { get; set; }
         public ICollection<RecTeacher> RecTeacher { get; set; }
-        public ICollection<Teacher> Teacher { get; set; }
     }
 }

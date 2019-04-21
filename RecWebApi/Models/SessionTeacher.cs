@@ -8,6 +8,7 @@ namespace RecWebApi.Models
         public int SessionTeacherId { get; set; }
         public int SessionId { get; set; }
         public int TeacherId { get; set; }
+        public bool? IsPrimaryTeacher { get; set; }
 
         public Session Session { get; set; }
         public Teacher Teacher { get; set; }

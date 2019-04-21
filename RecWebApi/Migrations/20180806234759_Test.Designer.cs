@@ -9,7 +9,7 @@ using RecWebApi.Models;
 
 namespace RecWebApi.Migrations
 {
-    [DbContext(typeof(RecDbContext))]
+    [DbContext(typeof(RecContext))]
     [Migration("20180806234759_Test")]
     partial class Test
     {

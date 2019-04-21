@@ -8,7 +8,7 @@ using RecWebApi.Models;
 
 namespace RecWebApi.Migrations
 {
-    [DbContext(typeof(RecDbContext))]
+    [DbContext(typeof(RecContext))]
     partial class RecDbContextModelSnapshot : ModelSnapshot
     {
         protected override void BuildModel(ModelBuilder modelBuilder)

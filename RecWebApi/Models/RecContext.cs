@@ -4,13 +4,13 @@ using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace RecWebApi.Models
 {
-    public partial class RecDbContext : DbContext
+    public partial class RecContext : DbContext
     {
-        public RecDbContext()
+        public RecContext()
         {
         }
 
-        public RecDbContext(DbContextOptions<RecDbContext> options)
+        public RecContext(DbContextOptions<RecContext> options)
             : base(options)
         {
         }
@@ -37,10 +37,8 @@ namespace RecWebApi.Models
         {
             if (!optionsBuilder.IsConfigured)
             {
-#pragma warning disable CS1030 // #warning directive
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. See http://go.microsoft.com/fwlink/?LinkId=723263 for guidance on storing connection strings.
-                optionsBuilder.UseSqlServer("Server=Desktop-4PHGOBJ\\SQLEXPRESS;Database=RecDb;Trusted_Connection=True;");
-#pragma warning restore CS1030 // #warning directive
+                optionsBuilder.UseSqlServer("Server=tcp:recattendance.database.windows.net,1433;Initial Catalog=Rec;Persist Security Info=False;User ID=faiz;Password=Retwe1234;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;");
             }
         }
 
@@ -126,6 +124,8 @@ namespace RecWebApi.Models
 
             modelBuilder.Entity<ClassTermStudent>(entity =>
             {
+                entity.HasKey(e => new { e.ClassTermId, e.StudentId });
+
                 entity.HasOne(d => d.ClassTerm)
                     .WithMany(p => p.ClassTermStudent)
                     .HasForeignKey(d => d.ClassTermId)
@@ -141,7 +141,7 @@ namespace RecWebApi.Models
 
             modelBuilder.Entity<ClassTermTeacher>(entity =>
             {
-                entity.Property(e => e.DisableDate).HasColumnType("date");
+                entity.HasKey(e => new { e.ClassTermId, e.TeacherId });
 
                 entity.HasOne(d => d.ClassTerm)
                     .WithMany(p => p.ClassTermTeacher)
@@ -165,6 +165,8 @@ namespace RecWebApi.Models
 
             modelBuilder.Entity<Enrollment>(entity =>
             {
+                entity.HasKey(e => new { e.StudentId, e.ClassId });
+
                 entity.HasOne(d => d.Class)
                     .WithMany(p => p.Enrollment)
                     .HasForeignKey(d => d.ClassId)
@@ -204,6 +206,10 @@ namespace RecWebApi.Models
 
             modelBuilder.Entity<RecTeacher>(entity =>
             {
+                entity.HasKey(e => new { e.RecId, e.TeacherId });
+
+                entity.Property(e => e.DisableDate).HasColumnType("date");
+
                 entity.HasOne(d => d.Rec)
                     .WithMany(p => p.RecTeacher)
                     .HasForeignKey(d => d.RecId)
@@ -277,15 +283,6 @@ namespace RecWebApi.Models
                 entity.Property(e => e.LastName)
                     .IsRequired()
                     .HasMaxLength(50);
-
-                entity.Property(e => e.MiddleName).HasMaxLength(50);
-
-                entity.Property(e => e.PrimaryRecId).HasColumnName("PrimaryRecID");
-
-                entity.HasOne(d => d.PrimaryRec)
-                    .WithMany(p => p.Teacher)
-                    .HasForeignKey(d => d.PrimaryRecId)
-                    .HasConstraintName("FK_Teacher_Rec");
             });
 
             modelBuilder.Entity<Term>(entity =>

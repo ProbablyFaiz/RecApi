@@ -19,11 +19,19 @@ namespace RecWebApi
         {
             services.AddMvc()
                     .SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            
         }
 
         public void Configure(IApplicationBuilder app)
         {
             app.UseMvc();
         }
+    }
+
+    public static class ApplicationLogging
+    {
+        public static ILoggerFactory LoggerFactory { get; } = new LoggerFactory();
+        public static ILogger CreateLogger<T>() =>
+          LoggerFactory.CreateLogger<T>();
     }
 }

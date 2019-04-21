@@ -39,6 +39,26 @@ namespace RecWebApi.Models
         public string PrimaryTeacherName { get; set; }
     }
 
+    public class CTeacher
+    {
+        public int TeacherId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
+        public string EmailAddress { get; set; }
+        public List<CClassTerm> ClassesTaught { get; set; }
+        public bool IsDisabled { get; set; }
+        public bool IsAdministrator { get; set; }
+        public string Operation { get; set; }
+    }
+
+    public class CClassTerm
+    {
+        public int ClassTermId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Operation { get; set; }
+    }
+
     public class CUser
     {
         public string EmailAddress { get; set; }
@@ -46,8 +66,14 @@ namespace RecWebApi.Models
 
         public int TeacherId { get; set; }
         public string FirstName { get; set; }
-        public string MiddleName { get; set; }
         public string LastName { get; set; }
+    }
+
+    public class Operation
+    {
+        public const string New = nameof(New);
+        public const string Updated = nameof(Updated);
+        public const string Deleted = nameof(Deleted);
     }
 
     public class CGoogleInfo
