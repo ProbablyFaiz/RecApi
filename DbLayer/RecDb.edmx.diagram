@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<edmx:Edmx Version="3.0" xmlns:edmx="http://schemas.microsoft.com/ado/2009/11/edmx">
+ <!-- EF Designer content (DO NOT EDIT MANUALLY BELOW HERE) -->
+  <edmx:Designer xmlns="http://schemas.microsoft.com/ado/2009/11/edmx">
+    <!-- Diagram content (shape and connector positions) -->
+    <edmx:Diagrams>
+      <Diagram DiagramId="7ca937f5ca614f6d9bf0d858347d5123" Name="Diagram1" ZoomLevel="86">
+        <EntityTypeShape EntityType="RecDBModel.Attendance" Width="1.5" PointX="7.5" PointY="1.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.AttendanceType" Width="1.5" PointX="5.25" PointY="5.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Class" Width="1.5" PointX="3" PointY="5" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.ClassType" Width="1.5" PointX="9.75" PointY="0.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Enrollment" Width="1.5" PointX="7.5" PointY="7.75" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Reason" Width="1.5" PointX="5.25" PointY="7.625" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Rec" Width="1.5" PointX="0.75" PointY="1.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Session" Width="1.5" PointX="5.25" PointY="1" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Student" Width="1.5" PointX="5.25" PointY="10.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Teacher" Width="1.5" PointX="3" PointY="1.125" IsExpanded="true" />
+        <EntityTypeShape EntityType="RecDBModel.Term" Width="1.5" PointX="0.75" PointY="5.5" IsExpanded="true" />
+        <AssociationConnector Association="RecDBModel.FK_Attendance_AttendanceType" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Attendance_Reason" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Attendance_Session" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Attendance_Student" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Class_Term" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Enrollment_Class" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Session_Class" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Enrollment_Student" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Teacher_Rec" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Session_Teacher1" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.FK_Session_Teacher2" ManuallyRouted="false" />
+        <AssociationConnector Association="RecDBModel.RecTeacher" ManuallyRouted="false" />
+      </Diagram>
+    </edmx:Diagrams>
+  </edmx:Designer>
+</edmx:Edmx>
